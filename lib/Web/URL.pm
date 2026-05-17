@@ -1,5 +1,5 @@
-package Web::URL;
-# ABSTRACT: Immutable, composable URL value type
+package Web::URL;    # ABSTRACT: Immutable, composable URL value type
+
 use v5.38;
 
 use Ref::Util    qw(is_arrayref is_blessed_ref is_hashref);
