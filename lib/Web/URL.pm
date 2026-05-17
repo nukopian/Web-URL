@@ -171,6 +171,10 @@ __END__
 
 Web::URL - Immutable, composable URL value type with placeholder and query semantics
 
+=head1 VERSION
+
+version {{$VERSION}}
+
 =head1 SYNOPSIS
 
     use Web::URL;

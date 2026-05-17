@@ -1,6 +1,10 @@
 # NAME
 
-Web::URL - Immutable, composable URL value type with placeholder and query semantics
+Web::URL - Immutable, composable URL value type
+
+# VERSION
+
+version 0.01
 
 # SYNOPSIS
 
@@ -36,6 +40,14 @@ parameters, `Mojo::Parameters` objects, and other `Web::URL` instances.
 
 The module is intentionally minimal: no mutation, no guessing, and no
 builder objects. A URL is treated as a value, not a mutable structure.
+
+# NAME
+
+Web::URL - Immutable, composable URL value type with placeholder and query semantics
+
+# VERSION
+
+version {{$VERSION}}
 
 # CONSTRUCTORS
 
@@ -166,3 +178,15 @@ Iain Campbell <cpanic@cpan.org>
 # LICENSE
 
 MIT.
+
+# AUTHOR
+
+Iain Campbell <cpanic@cpan.org>
+
+# COPYRIGHT AND LICENSE
+
+This software is Copyright (c) 2026 by Iain Campbell.
+
+This is free software, licensed under:
+
+    The MIT (X11) License
