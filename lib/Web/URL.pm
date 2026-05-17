@@ -1,4 +1,5 @@
 package Web::URL;
+# ABSTRACT: Immutable, composable URL value type
 use v5.38;
 
 use Ref::Util    qw(is_arrayref is_blessed_ref is_hashref);
@@ -11,8 +12,6 @@ use overload (
     '""'     => sub { shift->as_str() },
     fallback => 1,
 );
-
-our $VERSION = '0.01';
 
 our $ENCODER = URI::Encode->new();
 our $DECODE  = sub { $ENCODER->decode(@_) };
