@@ -39,14 +39,6 @@ builder objects. A URL is treated as a value, not a mutable structure.
 
 # CONSTRUCTORS
 
-## new
-
-    my $u = Web::URL->new(@parts);
-
-Idiomatic Perl constructor. This is a thin alias for ["from"](#from) and
-accepts the same arguments. It exists for compatibility with common
-Perl OO expectations.
-
 ## from
 
     my $u = Web::URL::from(@parts);
@@ -72,6 +64,14 @@ Examples:
 Constructs a `Web::URL` from a `URI` object or string. Query parameters,
 path, and fragments are preserved. The resulting URL is fed through the
 same composition pipeline as ["from"](#from).
+
+## new
+
+    my $u = Web::URL->new(@parts);
+
+Idiomatic Perl constructor. This is a thin alias for ["from"](#from) and
+accepts the same arguments. It exists for compatibility with common
+Perl OO expectations.
 
 # PLACEHOLDERS
 
@@ -147,10 +147,6 @@ Returns a `URI` object representing the URL.
 1. Consolidate parts into a base URL and parameter hash
 2. Merge path placeholders, consuming parameter values
 3. Rebuild the query string deterministically
-
-The constructor style is intentionally reminiscent of functional
-composition patterns found in languages like Rust, while remaining
-idiomatic Perl.
 
 # LIMITATIONS
 
