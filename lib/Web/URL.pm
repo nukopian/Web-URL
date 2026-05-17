@@ -208,14 +208,6 @@ builder objects. A URL is treated as a value, not a mutable structure.
 
 =head1 CONSTRUCTORS
 
-=head2 new
-
-    my $u = Web::URL->new(@parts);
-
-Idiomatic Perl constructor. This is a thin alias for L</from> and
-accepts the same arguments. It exists for compatibility with common
-Perl OO expectations.
-
 =head2 from
 
     my $u = Web::URL::from(@parts);
@@ -256,6 +248,14 @@ Examples:
 Constructs a C<Web::URL> from a C<URI> object or string. Query parameters,
 path, and fragments are preserved. The resulting URL is fed through the
 same composition pipeline as L</from>.
+
+=head2 new
+
+    my $u = Web::URL->new(@parts);
+
+Idiomatic Perl constructor. This is a thin alias for L</from> and
+accepts the same arguments. It exists for compatibility with common
+Perl OO expectations.
 
 =head1 PLACEHOLDERS
 
@@ -358,10 +358,6 @@ Merge path placeholders, consuming parameter values
 Rebuild the query string deterministically
 
 =back
-
-The constructor style is intentionally reminiscent of functional
-composition patterns found in languages like Rust, while remaining
-idiomatic Perl.
 
 =head1 LIMITATIONS
 
