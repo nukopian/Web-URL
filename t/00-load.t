@@ -1,19 +1,22 @@
 use v5.38;
 use Test2::V0;
 
-ok eval { require Web::URL; 1 }, 'Web::URL loads';
+ok eval { require Web::URL; 1 }, 'load Web::URL';
 
 subtest 'VERSION check' => sub {
 SKIP:
     {
-        skip 'Skipping VERSION test under Dist::Zilla', 1
-            unless $ENV{DZIL_TESTING};
+        unless ($ENV{DZIL_TESTING}) {
+            skip 'skip VERSION check if not using Dist::Zilla', 1;
+        }
 
         ok defined $Web::URL::VERSION, 'VERSION is defined';
     }
 };
 
 no warnings 'once';
+
+# This test just proves the module loaded correctly
 isa_ok $Web::URL::ENCODER, 'URI::Encode';
 
 done_testing;

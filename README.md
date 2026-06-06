@@ -18,7 +18,7 @@ version 0.01
     );
 
     say $u;                 # https://example.com/users/42?tags=a&tags=b
-    say $u->as_str;         # same
+    say $u->as_string;      # same
     say $u->as_URI->host;   # example.com
 
     # Composition using Web::URL objects
@@ -136,9 +136,9 @@ read-only scalar references. Methods never mutate the object.
 
 # METHODS
 
-## as\_str
+## as\_string
 
-    my $str = $u->as_str;
+    my $str = $u->as_string;
 
 Returns the URL as a string.
 

@@ -2,6 +2,7 @@ package Web::URL;    # ABSTRACT: Immutable, composable URL value type
 
 use v5.38;
 
+use Data::Dump   qw(pp);
 use Ref::Util    qw(is_arrayref is_blessed_ref is_hashref);
 use Scalar::Util qw(readonly);
 use URI          qw();
@@ -9,37 +10,57 @@ use URI::Encode  qw();
 
 use namespace::clean;
 use overload (
-    '""'     => sub { shift->as_str() },
+    '""'     => sub { shift->as_string() },
     fallback => 1,
 );
 
 our $ENCODER = URI::Encode->new();
-our $DECODE  = sub { $ENCODER->decode(@_) };
-our $ENCODE  = sub { $ENCODER->encode(@_) };
+our $DECODE  = sub {
+    $ENCODER->decode(map { $_ // '' } @_ ? @_ : $_);
+};
+our $ENCODE = sub {
+    $ENCODER->encode(map { $_ // '' } @_ ? @_ : $_);
+};
 
 
 sub _consolidate (@ps) {
     # consolidate url parts into a single string;
     # consolidate query-string key-values into params collection;
     # remove the query-string from the url.
-    my $u = '';
-    my $q = '';
+    my $url = '';
+    my $qs  = '';
     my %kv;
 
     for my $p (@ps) {
         if (ref $p) {
             if (is_blessed_ref($p)) {
                 if ($p->isa(__PACKAGE__)) {
-                    ($p = $p->as_str()) =~ s/\?(.*)$//;
+                    my $q = '';
+                    my $s = $p->as_string;
+                    my $i = index $s, '?';
 
-                    $q .= $q ? "&$1" : $1;
-                    $u .= $p;
+                    if ($i >= 0) {
+                        $q = substr $s, $i + 1;
+                        $p = substr $s, 0, $i;
+                    }
+                    else {
+                        $p = $s;
+                    }
+
+                    if (length $q) {
+                        $qs .= '&' if $qs;
+                        $qs .= $q;
+                    }
+
+                    $url .= $p;
                 }
                 elsif ($p->can('pairs')) {
                     my @pairs = $p->pairs();
 
                     while (my($k, $v) = splice @pairs, 0, 2) {
-                        push @{ $kv{$k} }, $v;
+                        $kv{$k} //= [];
+
+                        push @{ $kv{$k} }, is_arrayref($v) ? @$v : $v;
                     }
                 }
                 else {
@@ -48,6 +69,8 @@ sub _consolidate (@ps) {
             }
             elsif (is_hashref($p)) {
                 while (my($k, $v) = each %$p) {
+                    $kv{$k} //= [];
+
                     push @{ $kv{$k} }, is_arrayref($v) ? @$v : $v;
                 }
             }
@@ -56,35 +79,38 @@ sub _consolidate (@ps) {
             }
         }
         else {
-            if (!$u && $p =~ m/^\w+:|\/{2}/) {
-                $u = $p;
+            if (!$url && $p =~ m/^\w+:|\/{2}/) {
+                $url = $p;
             }
             else {
-                $p =~ s/^\/+//;
-                $u =~ s/\/+$//;
+                $p   =~ s/^\/+//;
+                $url =~ s/\/+$//;
 
-                $u .= $p =~ m/^[#?]/ ? $p : "/$p";
+                $url .= $p =~ m/^[#?]/ ? $p : "/$p";
             }
         }
     }
 
-    $u .= "?$q" if $q;
+    if ($qs) {
+        $url .= '?' . $qs;
+    }
 
-    if ($u =~ s/\?(.*)$//) {
-        for my $p (split /&/, $1, -1) {
+    if ($url =~ s/\?(.*)$//) {
+        for my $p (split '&', $1, -1) {
             my($k, $v) = split /=/, $p, 2;
 
-            push @{ $kv{$k} //= [] }, $DECODE->($v) unless exists $kv{$k};
+            push @{ $kv{$k} //= [] }, $DECODE->($v)
+                unless exists $kv{$k};
         }
     }
 
-    return $u, \%kv;
+    return $url, \%kv;
 }
 
 
-sub _merge_path_vals ($u, $kv = {}) {
+sub _merge_path_vals ($url, $kv = {}) {
     # merge path parameter values, deleting any merged items
-    my @ps = split m/\//, $u, -1;
+    my @ps = split m/\//, $url, -1;
 
     for my $p (@ps) {
         if ($p =~ m/^([:*])([A-Za-z0-9_-]+)$/) {
@@ -95,13 +121,15 @@ sub _merge_path_vals ($u, $kv = {}) {
 
                 if (is_arrayref($kv->{$k})) {
                     $v = shift @{ $kv->{$k} };
-                    delete $kv->{$k} unless @{ $kv->{$k} };
+
+                    delete $kv->{$k}
+                        unless @{ $kv->{$k} };
                 }
                 else {
                     $v = delete $kv->{$k};
                 }
 
-                $v = $ENCODE->($v // '');
+                $v = $ENCODE->($v);
                 $p = length $v ? $v : ($t eq ':' ? 'null' : '');
             }
             else {
@@ -110,63 +138,67 @@ sub _merge_path_vals ($u, $kv = {}) {
         }
     }
 
-    return join('/', @ps), $kv;
+    return (join '/', @ps), $kv;
 }
 
 
-sub _merge_qs_vals ($u, $kv = {}) {
+sub _merge_qs_vals ($url, $kv = {}) {
     # reconstitute query-string from parameters and append it to the URL
-    return $u unless %$kv;
+    return $url unless %$kv;
 
     my $q = '';
 
     for my $k (sort keys %$kv) {
-        my $v = is_arrayref($kv->{$k}) ? $kv->{$k} : [$kv->{$k}];
+        my @vs = is_arrayref($kv->{$k}) ? @{ $kv->{$k} } : $kv->{$k};
 
-        for my $v (sort @$v) {
+        for my $v (sort @vs) {
             $q .= length $q ? '&' : '?';
-            $q .= $k . '=' . $ENCODE->($v // '');
+            $q .= $k . '=' . $ENCODE->($v);
         }
     }
 
-    return $u . $q;
+    return $url . $q;
 }
 
 
-sub str (@ps) { _merge_qs_vals(_merge_path_vals(_consolidate(@ps))) }
+sub string (@ps) {
+    return _merge_qs_vals(_merge_path_vals(_consolidate(@ps)));
+}
 
 
-sub as_str ($self) { $$self }
+sub as_string ($self) {
+    return $$self;
+}
 
 
-sub as_URI ($self) { URI->new($$self) }
+sub as_URI ($self) {
+    return URI->new($$self);
+}
 
 
 sub from (@ps) {
-    readonly(my $u = str(@ps));
-    bless \$u;
+    readonly(my $u = string(@ps));
+
+    return bless(\$u, __PACKAGE__);
 }
 
 
-sub from_URI ($u) {
-    $u = URI->new($u) unless is_blessed_ref($u) && $u->isa('URI');
+sub from_URI ($u, @ps) {
+    $u = URI->new($u)
+        unless is_blessed_ref($u) && $u->isa('URI');
 
-    my $b  = $u->scheme . '://' . $u->authority;
-    my $p  = $u->path // '';
-    my $f  = $u->fragment;
-    my @fs = defined $f ? "#$f" : ();
-    my %kv = $u->query_form;
-
-    $p =~ s/^\///;
-
-    return from($b, $p, @fs, \%kv);
+    return from($u->as_string, @ps);
 }
 
 
-sub new ($class, @ps) { from(@ps) }
+sub new ($class, @ps) {
+    return from(@ps);
+}
 
 1;
+
 __END__
+
 =head1 NAME
 
 Web::URL - Immutable, composable URL value type with placeholder and query semantics
@@ -179,7 +211,14 @@ version {{$VERSION}}
 
     use Web::URL;
 
-    my $u = Web::URL->new(
+    $u = Web::URL::from(
+        'https://example.com',
+        'users',
+        ':id',
+        { id => 42, tags => ['a','b'] },
+    );
+
+    $u = Web::URL->new(
         'https://example.com',
         'users',
         ':id',
@@ -187,17 +226,19 @@ version {{$VERSION}}
     );
 
     say $u;                 # https://example.com/users/42?tags=a&tags=b
-    say $u->as_str;         # same
+    say $u->as_string;      # same
     say $u->as_URI->host;   # example.com
 
     # Composition using Web::URL objects
-    my $base = Web::URL->new('https://api.example.com', 'v1');
-    my $full = Web::URL->new($base, 'users', ':id', { id => 10 });
+
+    $base = Web::URL::from('https://api.example.com', 'v1');
+    $full = Web::URL::from($base, 'users', ':id', { id => 10 });
 
     say $full;              # https://api.example.com/v1/users/10
 
     # From a URI object or string
-    my $v = Web::URL::from_URI('https://foo.com/a/b?x=1&x=2&y=3');
+
+    $v = Web::URL::from_URI('https://foo.com/a/b?x=1&x=2&y=3');
     say $v;                 # https://foo.com/a/b?x=1&x=2&y=3
 
 =head1 DESCRIPTION
@@ -327,9 +368,9 @@ read-only scalar references. Methods never mutate the object.
 
 =head1 METHODS
 
-=head2 as_str
+=head2 as_string
 
-    my $str = $u->as_str;
+    my $str = $u->as_string;
 
 Returns the URL as a string.
 
